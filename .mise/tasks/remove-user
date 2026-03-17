@@ -36,6 +36,10 @@ git -C "$TARGET" rm -q "$GPG_FILE"
 git -C "$TARGET" commit -q -m "Remove collaborator $FPR from key '$KEY_NAME'"
 
 echo "Removed $FPR from key: $KEY_NAME"
+
+# Regenerate COLLABORATORS manifest
+CALLER_PWD="$TARGET" mise -C "$REPO_DIR" run -q collaborators 2>/dev/null || true
+
 echo ""
 echo "Note: this prevents future clones from granting access, but does NOT"
 echo "revoke access to data already decrypted or cached symmetric keys."

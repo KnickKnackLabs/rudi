@@ -25,3 +25,6 @@ if [ -n "$KEY_NAME" ]; then
 else
   echo "Added $FPR to default key"
 fi
+
+# Regenerate COLLABORATORS manifest
+CALLER_PWD="$TARGET" mise -C "$REPO_DIR" run -q collaborators 2>/dev/null || true
