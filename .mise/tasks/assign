@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+#MISE description="Assign a file pattern to an encryption key"
+#USAGE arg "<pattern>" help="Glob pattern to encrypt (e.g. 'notes/**', 'HUMAN.md')"
+#USAGE flag "-k --key <name>" help="Named key to assign pattern to (default: default key)"
+set -eo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$REPO_DIR/lib/common.sh"
+
+TARGET="$(rudi_target_dir)"
+rudi_require_git "$TARGET"
+
+PATTERN="$usage_pattern"
+KEY_NAME="${usage_key:-}"
+GITATTR="$TARGET/.gitattributes"
+
+# Build the filter/diff attribute string
+if [ -z "$KEY_NAME" ] || [ "$KEY_NAME" = "default" ]; then
+  ATTR="filter=git-crypt diff=git-crypt"
+  LABEL="default key"
+else
+  ATTR="filter=git-crypt-${KEY_NAME} diff=git-crypt-${KEY_NAME}"
+  LABEL="key: $KEY_NAME"
+fi
+
+# Append to .gitattributes
+printf '%-40s %s\n' "$PATTERN" "$ATTR" >> "$GITATTR"
+echo "Assigned '$PATTERN' to $LABEL"

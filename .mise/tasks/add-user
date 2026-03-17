@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+#MISE description="Add a GPG user to a key"
+#USAGE arg "<fingerprint>" help="GPG fingerprint of the user to add"
+#USAGE flag "-k --key <name>" help="Named key to add user to (default: default key)"
+set -eo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$REPO_DIR/lib/common.sh"
+
+TARGET="$(rudi_target_dir)"
+rudi_require_git_crypt
+rudi_require_git "$TARGET"
+
+FPR="$usage_fingerprint"
+KEY_NAME="${usage_key:-}"
+
+cmd=(git -C "$TARGET" crypt add-gpg-user --trusted)
+[ -n "$KEY_NAME" ] && cmd+=(--key-name "$KEY_NAME")
+cmd+=("$FPR")
+
+"${cmd[@]}"
+
+if [ -n "$KEY_NAME" ]; then
+  echo "Added $FPR to key: $KEY_NAME"
+else
+  echo "Added $FPR to default key"
+fi

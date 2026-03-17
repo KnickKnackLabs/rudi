@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#MISE description="Add a named encryption key"
+#USAGE arg "<name>" help="Name for the new key"
+set -eo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$REPO_DIR/lib/common.sh"
+
+TARGET="$(rudi_target_dir)"
+rudi_require_git_crypt
+rudi_require_git "$TARGET"
+
+NAME="$usage_name"
+
+git -C "$TARGET" crypt init --key-name "$NAME"
+echo "Added named key: $NAME"

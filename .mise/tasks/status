@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#MISE description="Show multi-key encryption status"
+set -eo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$REPO_DIR/lib/common.sh"
+
+TARGET="$(rudi_target_dir)"
+rudi_require_git_crypt
+rudi_require_git "$TARGET"
+
+echo "Keys:"
+# Local keys (from init)
+if [ -d "$TARGET/.git/git-crypt/keys" ]; then
+  for key in "$TARGET/.git/git-crypt/keys"/*; do
+    key_name=$(basename "$key")
+    echo "  $key_name (initialized)"
+  done
+fi
+
+echo ""
+echo "Collaborators:"
+# Committed keys (from add-gpg-user)
+if [ -d "$TARGET/.git-crypt/keys" ]; then
+  for key_dir in "$TARGET/.git-crypt/keys"/*/; do
+    key_name=$(basename "$key_dir")
+    gpg_count=$(find "$key_dir" -name "*.gpg" 2>/dev/null | wc -l | tr -d ' ')
+    echo "  $key_name: $gpg_count user(s)"
+  done
+else
+  echo "  (no users added yet)"
+fi
+
+echo ""
+echo "Patterns (.gitattributes):"
+if [ -f "$TARGET/.gitattributes" ]; then
+  grep -E 'git-crypt' "$TARGET/.gitattributes" 2>/dev/null | while read -r line; do
+    echo "  $line"
+  done
+else
+  echo "  (no .gitattributes)"
+fi
+
+echo ""
+echo "File status:"
+git -C "$TARGET" crypt status 2>/dev/null || echo "  (not initialized or locked)"

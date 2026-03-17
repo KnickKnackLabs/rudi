@@ -1,0 +1,5 @@
+[tools]
+bats = "1.13.0"
+
+# git-crypt: system dependency (brew install git-crypt)
+# gpg: system dependency
