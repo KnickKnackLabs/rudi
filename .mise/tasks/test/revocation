@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Run revocation tests (remove-user, rotate-key)"
+set -e
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+bats "$REPO_DIR/test/revocation.bats"

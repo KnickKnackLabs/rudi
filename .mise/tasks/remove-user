@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+#MISE description="Remove a GPG user from a key"
+#USAGE arg "<fingerprint>" help="GPG fingerprint of the user to remove"
+#USAGE flag "-k --key <name>" help="Named key to remove user from (default: default key)"
+set -eo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$REPO_DIR/lib/common.sh"
+
+TARGET="$(rudi_target_dir)"
+rudi_require_git_crypt
+rudi_require_git "$TARGET"
+
+FPR="$usage_fingerprint"
+KEY_NAME="${usage_key:-default}"
+
+GPG_DIR="$TARGET/.git-crypt/keys/$KEY_NAME/0"
+
+if [ ! -d "$GPG_DIR" ]; then
+  echo "Error: key '$KEY_NAME' does not exist" >&2
+  echo "Available keys:" >&2
+  ls "$TARGET/.git-crypt/keys/" 2>/dev/null | sed 's/^/  /' >&2
+  exit 1
+fi
+
+GPG_FILE="$GPG_DIR/$FPR.gpg"
+
+if [ ! -f "$GPG_FILE" ]; then
+  echo "Error: user $FPR is not a collaborator on key '$KEY_NAME'" >&2
+  echo "Collaborators on '$KEY_NAME':" >&2
+  ls "$GPG_DIR"/*.gpg 2>/dev/null | xargs -n1 basename | sed 's/\.gpg$//' | sed 's/^/  /' >&2
+  exit 1
+fi
+
+git -C "$TARGET" rm -q "$GPG_FILE"
+git -C "$TARGET" commit -q -m "Remove collaborator $FPR from key '$KEY_NAME'"
+
+echo "Removed $FPR from key: $KEY_NAME"
+echo ""
+echo "Note: this prevents future clones from granting access, but does NOT"
+echo "revoke access to data already decrypted or cached symmetric keys."
+echo "For full revocation, run: rudi rotate-key --key $KEY_NAME"
