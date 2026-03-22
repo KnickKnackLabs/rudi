@@ -2,8 +2,6 @@
 # common.sh — shared helpers for rudi
 # All functions namespaced rudi_
 
-RUDI_REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
 # Resolve the target directory (the repo rudi is operating on).
 # Uses CALLER_PWD (set by shiv shim) or falls back to PWD.
 rudi_target_dir() {

@@ -2,5 +2,4 @@
 #MISE description="Run collaborators and verification tests"
 set -e
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-bats "$REPO_DIR/test/collaborators.bats"
+bats "$MISE_CONFIG_ROOT/test/collaborators.bats"

@@ -4,8 +4,7 @@
 #USAGE flag "-f --key-file <file>" help="Path to armored public key file (or - for stdin)"
 set -eo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$REPO_DIR/lib/common.sh"
+source "$MISE_CONFIG_ROOT/lib/common.sh"
 
 TARGET="$(rudi_target_dir)"
 fingerprint="$usage_fingerprint"

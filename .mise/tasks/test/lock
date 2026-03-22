@@ -2,5 +2,4 @@
 #MISE description="Run lock/unlock tests"
 set -e
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-bats "$REPO_DIR/test/lock.bats"
+bats "$MISE_CONFIG_ROOT/test/lock.bats"

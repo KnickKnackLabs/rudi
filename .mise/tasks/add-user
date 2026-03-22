@@ -4,8 +4,7 @@
 #USAGE flag "-k --key <name>" help="Named key to add user to (default: default key)"
 set -eo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$REPO_DIR/lib/common.sh"
+source "$MISE_CONFIG_ROOT/lib/common.sh"
 
 TARGET="$(rudi_target_dir)"
 rudi_require_git_crypt
@@ -27,4 +26,4 @@ else
 fi
 
 # Regenerate COLLABORATORS manifest
-CALLER_PWD="$TARGET" mise -C "$REPO_DIR" run -q collaborators 2>/dev/null || true
+CALLER_PWD="$TARGET" mise -C "$MISE_CONFIG_ROOT" run -q collaborators 2>/dev/null || true
