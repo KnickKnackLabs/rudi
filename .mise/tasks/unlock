@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#MISE description="Unlock encrypted files using your GPG key"
+set -eo pipefail
+
+source "$MISE_CONFIG_ROOT/lib/common.sh"
+
+TARGET="$(rudi_target_dir)"
+rudi_require_git_crypt
+rudi_require_git "$TARGET"
+
+git -C "$TARGET" crypt unlock
+echo "Unlocked. Encrypted files are now readable."
