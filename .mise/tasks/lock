@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+#MISE description="Lock encrypted files (re-encrypt on disk)"
+#USAGE flag "-k --key <name>" help="Lock only this named key's files (default: lock all)"
+set -eo pipefail
+
+source "$MISE_CONFIG_ROOT/lib/common.sh"
+
+TARGET="$(rudi_target_dir)"
+rudi_require_git_crypt
+rudi_require_git "$TARGET"
+
+if [ -n "${usage_key:-}" ]; then
+  git -C "$TARGET" crypt lock --key-name "$usage_key"
+  echo "Locked key: $usage_key"
+else
+  git -C "$TARGET" crypt lock --all
+  echo "Locked all keys."
+fi

@@ -23,7 +23,54 @@ setup_multi_key_repo() {
   commit_file "notes/private.md" "Default-key content"
 }
 
-@test "lock --key-name locks only that key's files" {
+# --- rudi lock/unlock task tests ---
+
+@test "rudi lock locks all keys by default" {
+  setup_multi_key_repo
+
+  run_rudi lock
+
+  rudi_is_encrypted "$RUDI_TARGET/shared.md"
+  rudi_is_encrypted "$RUDI_TARGET/notes/private.md"
+}
+
+@test "rudi lock --key locks only that key's files" {
+  setup_multi_key_repo
+
+  run_rudi lock --key alpha
+
+  rudi_is_encrypted "$RUDI_TARGET/shared.md"
+  rudi_is_plaintext "$RUDI_TARGET/notes/private.md"
+}
+
+@test "rudi unlock restores all locked files" {
+  setup_multi_key_repo
+
+  run_rudi lock
+  rudi_is_encrypted "$RUDI_TARGET/shared.md"
+  rudi_is_encrypted "$RUDI_TARGET/notes/private.md"
+
+  export GNUPGHOME="$USERS_DIR/ada/g"
+  run_rudi unlock
+
+  rudi_is_plaintext "$RUDI_TARGET/shared.md"
+  rudi_is_plaintext "$RUDI_TARGET/notes/private.md"
+}
+
+@test "rudi unlock after partial lock restores files" {
+  setup_multi_key_repo
+
+  run_rudi lock --key alpha
+  rudi_is_encrypted "$RUDI_TARGET/shared.md"
+
+  export GNUPGHOME="$USERS_DIR/ada/g"
+  run_rudi unlock
+  rudi_is_plaintext "$RUDI_TARGET/shared.md"
+}
+
+# --- raw git-crypt behavior (documenting quirks) ---
+
+@test "git-crypt lock --key-name locks only that key's files" {
   setup_multi_key_repo
 
   rudi_is_plaintext "$RUDI_TARGET/shared.md"
@@ -35,33 +82,13 @@ setup_multi_key_repo() {
   rudi_is_plaintext "$RUDI_TARGET/notes/private.md"
 }
 
-@test "lock --all locks all keys" {
-  setup_multi_key_repo
-
-  git -C "$RUDI_TARGET" crypt lock --all
-
-  rudi_is_encrypted "$RUDI_TARGET/shared.md"
-  rudi_is_encrypted "$RUDI_TARGET/notes/private.md"
-}
-
-@test "lock with no flags locks only default-key files" {
+@test "git-crypt lock with no flags locks only default-key files" {
   setup_multi_key_repo
 
   git -C "$RUDI_TARGET" crypt lock
 
   # FINDING: bare 'lock' only locks default-key files
   rudi_is_encrypted "$RUDI_TARGET/notes/private.md"
-  rudi_is_plaintext "$RUDI_TARGET/shared.md"
-}
-
-@test "unlock after partial lock restores files" {
-  setup_multi_key_repo
-
-  git -C "$RUDI_TARGET" crypt lock --key-name alpha
-  rudi_is_encrypted "$RUDI_TARGET/shared.md"
-
-  export GNUPGHOME="$USERS_DIR/ada/g"
-  git -C "$RUDI_TARGET" crypt unlock
   rudi_is_plaintext "$RUDI_TARGET/shared.md"
 }
 
