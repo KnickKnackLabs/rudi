@@ -22,6 +22,13 @@ else
   LABEL="key: $KEY_NAME"
 fi
 
-# Append to .gitattributes
-printf '%-40s %s\n' "$PATTERN" "$ATTR" >> "$GITATTR"
-echo "Assigned '$PATTERN' to $LABEL"
+# Check if this pattern is already assigned
+if [ -f "$GITATTR" ] && grep -qF "$PATTERN" "$GITATTR" && grep -qF "$ATTR" "$GITATTR"; then
+  echo "Pattern '$PATTERN' already assigned to $LABEL"
+else
+  printf '%-40s %s\n' "$PATTERN" "$ATTR" >> "$GITATTR"
+  echo "Assigned '$PATTERN' to $LABEL"
+fi
+
+# Stage .gitattributes so clones pick up the encryption config
+git -C "$TARGET" add "$GITATTR"

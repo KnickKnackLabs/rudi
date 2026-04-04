@@ -202,3 +202,42 @@ load helpers
   rudi_is_plaintext "$cal_clone/scratch.beta.md"
   rudi_is_encrypted "$cal_clone/scratch.alpha.md"
 }
+
+@test "add-user is idempotent for same fingerprint and key" {
+  create_test_repo "test-repo"
+  rudi init alpha
+
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi add-user "$fpr"
+
+  # Count commits before
+  local commits_before
+  commits_before=$(git -C "$RUDI_TARGET" rev-list --count HEAD)
+
+  # Adding same user again should succeed but not create a new commit
+  run rudi add-user "$fpr"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"already"* ]]
+
+  local commits_after
+  commits_after=$(git -C "$RUDI_TARGET" rev-list --count HEAD)
+  [ "$commits_before" -eq "$commits_after" ]
+}
+
+@test "add-user same fingerprint to different key is not idempotent" {
+  create_test_repo "test-repo"
+  rudi init alpha
+
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi add-user "$fpr"
+
+  # Adding to a different key should work
+  run rudi add-user "$fpr" --key alpha
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"already"* ]]
+
+  [ -f "$RUDI_TARGET/.git-crypt/keys/default/0/$fpr.gpg" ]
+  [ -f "$RUDI_TARGET/.git-crypt/keys/alpha/0/$fpr.gpg" ]
+}
