@@ -30,6 +30,16 @@ load helpers
   [ -d "$RUDI_TARGET/.git-crypt/keys/gamma" ]
 }
 
+@test "init is idempotent on already-initialized repo" {
+  create_test_repo "test-repo"
+  rudi init alpha
+
+  # Running init again should succeed, not error
+  run rudi init alpha
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"already initialized"* ]]
+}
+
 @test "add-key adds a named key to existing repo" {
   create_test_repo "test-repo"
   rudi init alpha

@@ -9,12 +9,20 @@ TARGET="$(rudi_target_dir)"
 rudi_require_git_crypt
 rudi_require_git "$TARGET"
 
-# Always init the default key
-git -C "$TARGET" crypt init
-echo "Initialized default key"
+# Always init the default key (skip if already initialized)
+if [ -d "$TARGET/.git/git-crypt" ]; then
+  echo "Default key already initialized"
+else
+  git -C "$TARGET" crypt init
+  echo "Initialized default key"
+fi
 
-# Init any named keys
+# Init any named keys (skip if already initialized)
 for key_name in $usage_key_names; do
-  git -C "$TARGET" crypt init --key-name "$key_name"
-  echo "Initialized named key: $key_name"
+  if [ -f "$TARGET/.git/git-crypt/keys/$key_name" ]; then
+    echo "Named key already initialized: $key_name"
+  else
+    git -C "$TARGET" crypt init --key-name "$key_name"
+    echo "Initialized named key: $key_name"
+  fi
 done
