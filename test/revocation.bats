@@ -5,18 +5,18 @@ load helpers
 
 @test "remove-user deletes gpg file from key directory" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr bob_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
 
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi add-user "$bob_fpr" --key alpha
+  rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$bob_fpr" --key alpha
 
   [ -f "$RUDI_TARGET/.git-crypt/keys/alpha/0/$bob_fpr.gpg" ]
 
-  run_rudi remove-user "$bob_fpr" --key alpha
+  rudi remove-user "$bob_fpr" --key alpha
 
   [ ! -f "$RUDI_TARGET/.git-crypt/keys/alpha/0/$bob_fpr.gpg" ]
   # ada's key should still be there
@@ -25,16 +25,16 @@ load helpers
 
 @test "remove-user creates a commit" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
-  run_rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$ada_fpr" --key alpha
 
   local before after
   before=$(git -C "$RUDI_TARGET" rev-list --count HEAD)
 
-  run_rudi remove-user "$ada_fpr" --key alpha
+  rudi remove-user "$ada_fpr" --key alpha
 
   after=$(git -C "$RUDI_TARGET" rev-list --count HEAD)
   [ "$after" -gt "$before" ]
@@ -42,50 +42,50 @@ load helpers
 
 @test "remove-user fails for nonexistent fingerprint" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
-  run_rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$ada_fpr" --key alpha
 
-  run run_rudi remove-user "0000000000000000000000000000000000000000" --key alpha
+  run rudi remove-user "0000000000000000000000000000000000000000" --key alpha
   [ "$status" -ne 0 ]
 }
 
 @test "remove-user fails for nonexistent key" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
-  run_rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$ada_fpr" --key alpha
 
-  run run_rudi remove-user "$ada_fpr" --key nonexistent
+  run rudi remove-user "$ada_fpr" --key nonexistent
   [ "$status" -ne 0 ]
 }
 
 @test "removed user cannot decrypt on fresh clone" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr bob_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
 
   # Both get alpha key
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi add-user "$bob_fpr" --key alpha
+  rudi add-user "$ada_fpr"
+  rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$bob_fpr" --key alpha
 
-  run_rudi assign "notes/**"
-  run_rudi assign "shared.md" --key alpha
+  rudi assign "notes/**"
+  rudi assign "shared.md" --key alpha
 
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "shared.md" "Sensitive content"
   commit_file "notes/private.md" "Default-key content"
 
   # Remove bob
-  run_rudi remove-user "$bob_fpr" --key alpha
+  rudi remove-user "$bob_fpr" --key alpha
 
   # Lock everything
   git -C "$RUDI_TARGET" crypt lock --all
@@ -102,15 +102,15 @@ load helpers
 
 @test "rotate-key generates a new symmetric key" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$ada_fpr"
+  rudi add-user "$ada_fpr" --key alpha
 
-  run_rudi assign "notes/**"
-  run_rudi assign "shared.md" --key alpha
+  rudi assign "notes/**"
+  rudi assign "shared.md" --key alpha
 
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "shared.md" "Content to re-encrypt"
@@ -121,7 +121,7 @@ load helpers
   git -C "$RUDI_TARGET" crypt export-key --key-name alpha "$old_key"
 
   # Rotate
-  run_rudi rotate-key --key alpha
+  rudi rotate-key --key alpha
 
   # Export the new key
   local new_key="$TEST_DIR/new-alpha.key"
@@ -133,21 +133,21 @@ load helpers
 
 @test "rotate-key preserves file content" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$ada_fpr"
+  rudi add-user "$ada_fpr" --key alpha
 
-  run_rudi assign "notes/**"
-  run_rudi assign "shared.md" --key alpha
+  rudi assign "notes/**"
+  rudi assign "shared.md" --key alpha
 
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "shared.md" "Important content that must survive rotation"
   commit_file "notes/private.md" "Default-key content"
 
-  run_rudi rotate-key --key alpha
+  rudi rotate-key --key alpha
 
   # Content should be preserved
   rudi_is_plaintext "$RUDI_TARGET/shared.md"
@@ -160,23 +160,23 @@ load helpers
 
 @test "rotate-key re-adds remaining collaborators" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr bob_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
 
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi add-user "$bob_fpr" --key alpha
+  rudi add-user "$ada_fpr"
+  rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$bob_fpr" --key alpha
 
-  run_rudi assign "shared.md" --key alpha
+  rudi assign "shared.md" --key alpha
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "shared.md" "Shared content"
 
   # Remove bob, then rotate
-  run_rudi remove-user "$bob_fpr" --key alpha
-  run_rudi rotate-key --key alpha
+  rudi remove-user "$bob_fpr" --key alpha
+  rudi rotate-key --key alpha
 
   # ada should still have access (re-added during rotation)
   [ -f "$RUDI_TARGET/.git-crypt/keys/alpha/0/$ada_fpr.gpg" ]
@@ -187,26 +187,26 @@ load helpers
 
 @test "full offboarding: remove + rotate + verify isolation" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr bob_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
 
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi add-user "$bob_fpr" --key alpha
+  rudi add-user "$ada_fpr"
+  rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$bob_fpr" --key alpha
 
-  run_rudi assign "notes/**"
-  run_rudi assign "shared.md" --key alpha
+  rudi assign "notes/**"
+  rudi assign "shared.md" --key alpha
 
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "shared.md" "Post-rotation content"
   commit_file "notes/private.md" "Default-key content"
 
   # Offboard bob: remove + rotate
-  run_rudi remove-user "$bob_fpr" --key alpha
-  run_rudi rotate-key --key alpha
+  rudi remove-user "$bob_fpr" --key alpha
+  rudi rotate-key --key alpha
 
   # Lock and verify ada can still access
   git -C "$RUDI_TARGET" crypt lock --all

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Test status task"
+#MISE dir="{{config_root}}"
+set -euo pipefail
+
+exec bats test/status.bats "$@"

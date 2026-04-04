@@ -5,17 +5,17 @@ load helpers
 
 @test "collaborators generates manifest with all users and keys" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr bob_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
 
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi add-user "$bob_fpr" --key alpha
+  rudi add-user "$ada_fpr"
+  rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$bob_fpr" --key alpha
 
-  run_rudi collaborators
+  rudi collaborators
 
   local manifest="$RUDI_TARGET/.git-crypt/COLLABORATORS"
   [ -f "$manifest" ]
@@ -31,12 +31,12 @@ load helpers
 
 @test "collaborators includes vendored public keys" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi collaborators
+  rudi add-user "$ada_fpr" --key alpha
+  rudi collaborators
 
   local manifest="$RUDI_TARGET/.git-crypt/COLLABORATORS"
 
@@ -47,18 +47,18 @@ load helpers
 
 @test "collaborators shows pattern-to-key mapping in header" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$ada_fpr"
+  rudi add-user "$ada_fpr" --key alpha
 
-  run_rudi assign "notes/**"
-  run_rudi assign "shared.md" --key alpha
+  rudi assign "notes/**"
+  rudi assign "shared.md" --key alpha
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
 
-  run_rudi collaborators
+  rudi collaborators
 
   local manifest="$RUDI_TARGET/.git-crypt/COLLABORATORS"
 
@@ -69,11 +69,11 @@ load helpers
 
 @test "add-user automatically regenerates manifest" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
-  run_rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$ada_fpr" --key alpha
 
   local manifest="$RUDI_TARGET/.git-crypt/COLLABORATORS"
   # add-user should have generated the manifest automatically
@@ -83,19 +83,19 @@ load helpers
 
 @test "remove-user automatically regenerates manifest" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr bob_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
 
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi add-user "$bob_fpr" --key alpha
+  rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$bob_fpr" --key alpha
 
   local manifest="$RUDI_TARGET/.git-crypt/COLLABORATORS"
   grep -q "$bob_fpr" "$manifest"
 
-  run_rudi remove-user "$bob_fpr" --key alpha
+  rudi remove-user "$bob_fpr" --key alpha
 
   # bob should no longer appear in the manifest
   ! grep -q "$bob_fpr" "$manifest"
@@ -105,44 +105,44 @@ load helpers
 
 @test "verify confirms matching fingerprint from manifest" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi collaborators
+  rudi add-user "$ada_fpr" --key alpha
+  rudi collaborators
 
-  run run_rudi verify "$ada_fpr"
+  run rudi verify "$ada_fpr"
   [ "$status" -eq 0 ]
   echo "$output" | grep -q "Verified"
 }
 
 @test "verify rejects mismatched fingerprint" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi collaborators
+  rudi add-user "$ada_fpr" --key alpha
+  rudi collaborators
 
   # Use a fake fingerprint — should find ada's key block but fingerprint won't match
-  run run_rudi verify "0000000000000000000000000000000000000000"
+  run rudi verify "0000000000000000000000000000000000000000"
   [ "$status" -ne 0 ]
 }
 
 @test "verify works with --key-file from stdin" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
-  run_rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$ada_fpr" --key alpha
 
   # Export ada's public key and verify via stdin
   local pubkey
   pubkey=$(gpg --homedir "$USERS_DIR/ada/g" --armor --export "$ada_fpr" 2>/dev/null)
 
-  run bash -c "echo '$pubkey' | CALLER_PWD='$RUDI_TARGET' mise -C '$REPO_DIR' run -q verify '$ada_fpr' --key-file -"
+  run bash -c "echo '$pubkey' | CALLER_PWD='$RUDI_TARGET' mise -C '$MISE_CONFIG_ROOT' run -q verify '$ada_fpr' --key-file -"
   [ "$status" -eq 0 ]
 }

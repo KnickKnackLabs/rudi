@@ -1,8 +1,13 @@
 # test/helpers.bash — BATS test fixtures for rudi
 # Loaded via `load helpers` in each .bats file
 
-REPO_DIR="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-source "$REPO_DIR/lib/common.sh"
+# Tests must be run via `mise run test` (or `rudi test`)
+if [ -z "${MISE_CONFIG_ROOT:-}" ]; then
+  echo "MISE_CONFIG_ROOT not set — run tests via: mise run test" >&2
+  exit 1
+fi
+
+source "$MISE_CONFIG_ROOT/lib/common.sh"
 
 setup() {
   # Use a short temp path — gpg-agent's Unix socket has a 104-char limit on macOS.
@@ -34,13 +39,16 @@ teardown() {
   rm -rf "$TEST_DIR"
 }
 
-# Run a rudi task against a target repo.
-# Args: $1 = task name, remaining args passed through
-# CALLER_PWD is set to the current RUDI_TARGET (must be set by test).
-run_rudi() {
-  local task="$1"; shift
-  CALLER_PWD="$RUDI_TARGET" mise -C "$REPO_DIR" run -q "$task" "$@" 2>&1
+# rudi() wrapper — calls tasks via mise, just like real usage.
+# RUDI_TARGET must be set by the test (the repo rudi operates on).
+rudi() {
+  if [ -z "${RUDI_TARGET:-}" ]; then
+    echo "RUDI_TARGET not set" >&2
+    return 1
+  fi
+  cd "$MISE_CONFIG_ROOT" && CALLER_PWD="$RUDI_TARGET" mise run -q "$@"
 }
+export -f rudi
 
 # Create a test git repo and set it as the rudi target.
 # Args: $1 = repo name (created under REPOS_DIR)

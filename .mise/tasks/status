@@ -1,45 +1,134 @@
 #!/usr/bin/env bash
 #MISE description="Show multi-key encryption status"
+#USAGE flag "--json" help="Output as JSON"
 set -eo pipefail
 
 source "$MISE_CONFIG_ROOT/lib/common.sh"
 
 TARGET="$(rudi_target_dir)"
-rudi_require_git_crypt
 rudi_require_git "$TARGET"
 
-echo "Keys:"
-# Local keys (from init)
+JSON="${usage_json:-false}"
+
+# --- Gather state ---
+
+initialized=false
+unlocked=false
+keys=()
+declare -A collaborators
+patterns=()
+
+# Check initialization (.git/git-crypt is created by git-crypt init,
+# .git-crypt is created later when adding collaborators)
+if [ -d "$TARGET/.git/git-crypt" ] || [ -d "$TARGET/.git-crypt" ]; then
+  initialized=true
+fi
+
+# Gather keys and detect unlock state.
+# git-crypt stores symmetric key files in .git/git-crypt/keys/ when unlocked.
+# On lock, these files are removed. Their presence means we're unlocked.
 if [ -d "$TARGET/.git/git-crypt/keys" ]; then
   for key in "$TARGET/.git/git-crypt/keys"/*; do
-    key_name=$(basename "$key")
-    echo "  $key_name (initialized)"
+    [ ! -f "$key" ] && continue
+    key_name="$(basename "$key")"
+    keys+=("$key_name")
   done
+  if [ "${#keys[@]}" -gt 0 ]; then
+    unlocked=true
+  fi
 fi
 
-echo ""
-echo "Collaborators:"
-# Committed keys (from add-gpg-user)
+# Gather collaborators
 if [ -d "$TARGET/.git-crypt/keys" ]; then
   for key_dir in "$TARGET/.git-crypt/keys"/*/; do
-    key_name=$(basename "$key_dir")
+    [ ! -d "$key_dir" ] && continue
+    key_name="$(basename "$key_dir")"
     gpg_count=$(find "$key_dir" -name "*.gpg" 2>/dev/null | wc -l | tr -d ' ')
-    echo "  $key_name: $gpg_count user(s)"
+    collaborators[$key_name]=$gpg_count
   done
-else
-  echo "  (no users added yet)"
 fi
 
-echo ""
-echo "Patterns (.gitattributes):"
+# Gather patterns
 if [ -f "$TARGET/.gitattributes" ]; then
-  grep -E 'git-crypt' "$TARGET/.gitattributes" 2>/dev/null | while read -r line; do
-    echo "  $line"
-  done
-else
-  echo "  (no .gitattributes)"
+  while IFS= read -r line; do
+    # Extract the pattern (everything before filter=git-crypt)
+    pattern="$(echo "$line" | awk '{print $1}')"
+    [ -n "$pattern" ] && patterns+=("$pattern")
+  done < <(grep 'filter=git-crypt' "$TARGET/.gitattributes" 2>/dev/null || true)
 fi
 
-echo ""
-echo "File status:"
-git -C "$TARGET" crypt status 2>/dev/null || echo "  (not initialized or locked)"
+# --- Output ---
+
+if [ "$JSON" = "true" ]; then
+  # Build keys JSON array
+  keys_json="[]"
+  if [ "${#keys[@]}" -gt 0 ]; then
+    keys_json="$(printf '%s\n' "${keys[@]}" | jq -R . | jq -sc .)"
+  fi
+
+  # Build collaborators JSON object
+  collab_json="{}"
+  if [ "${#collaborators[@]}" -gt 0 ]; then
+    collab_json="$(
+      for k in "${!collaborators[@]}"; do
+        printf '%s\t%s\n' "$k" "${collaborators[$k]}"
+      done | jq -Rsc '
+        split("\n") | map(select(length > 0) | split("\t")) |
+        map({(.[0]): (.[1] | tonumber)}) | add // {}
+      '
+    )"
+  fi
+
+  # Build patterns JSON array
+  patterns_json="[]"
+  if [ "${#patterns[@]}" -gt 0 ]; then
+    patterns_json="$(printf '%s\n' "${patterns[@]}" | jq -R . | jq -sc .)"
+  fi
+
+  jq -nc \
+    --argjson initialized "$initialized" \
+    --argjson unlocked "$unlocked" \
+    --argjson keys "$keys_json" \
+    --argjson collaborators "$collab_json" \
+    --argjson patterns "$patterns_json" \
+    '{
+      initialized: $initialized,
+      unlocked: $unlocked,
+      keys: $keys,
+      collaborators: $collaborators,
+      patterns: $patterns
+    }'
+else
+  rudi_require_git_crypt
+
+  echo "Keys:"
+  if [ "${#keys[@]}" -gt 0 ]; then
+    for key_name in "${keys[@]}"; do
+      echo "  $key_name (initialized)"
+    done
+  elif $initialized; then
+    echo "  (locked)"
+  else
+    echo "  (not initialized)"
+  fi
+
+  echo ""
+  echo "Collaborators:"
+  if [ "${#collaborators[@]}" -gt 0 ]; then
+    for key_name in "${!collaborators[@]}"; do
+      echo "  $key_name: ${collaborators[$key_name]} user(s)"
+    done
+  else
+    echo "  (no users added yet)"
+  fi
+
+  echo ""
+  echo "Patterns (.gitattributes):"
+  if [ "${#patterns[@]}" -gt 0 ]; then
+    for p in "${patterns[@]}"; do
+      echo "  $p"
+    done
+  else
+    echo "  (none)"
+  fi
+fi

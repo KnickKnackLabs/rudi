@@ -7,16 +7,16 @@ load helpers
 # files committed under both keys.
 setup_multi_key_repo() {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local fpr
   fpr=$(create_test_user "ada")
 
-  run_rudi add-user "$fpr"
-  run_rudi add-user "$fpr" --key alpha
+  rudi add-user "$fpr"
+  rudi add-user "$fpr" --key alpha
 
-  run_rudi assign "notes/**"
-  run_rudi assign "shared.md" --key alpha
+  rudi assign "notes/**"
+  rudi assign "shared.md" --key alpha
 
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "shared.md" "Alpha-key content"
@@ -28,7 +28,7 @@ setup_multi_key_repo() {
 @test "rudi lock locks all keys by default" {
   setup_multi_key_repo
 
-  run_rudi lock
+  rudi lock
 
   rudi_is_encrypted "$RUDI_TARGET/shared.md"
   rudi_is_encrypted "$RUDI_TARGET/notes/private.md"
@@ -37,7 +37,7 @@ setup_multi_key_repo() {
 @test "rudi lock --key locks only that key's files" {
   setup_multi_key_repo
 
-  run_rudi lock --key alpha
+  rudi lock --key alpha
 
   rudi_is_encrypted "$RUDI_TARGET/shared.md"
   rudi_is_plaintext "$RUDI_TARGET/notes/private.md"
@@ -46,12 +46,12 @@ setup_multi_key_repo() {
 @test "rudi unlock restores all locked files" {
   setup_multi_key_repo
 
-  run_rudi lock
+  rudi lock
   rudi_is_encrypted "$RUDI_TARGET/shared.md"
   rudi_is_encrypted "$RUDI_TARGET/notes/private.md"
 
   export GNUPGHOME="$USERS_DIR/ada/g"
-  run_rudi unlock
+  rudi unlock
 
   rudi_is_plaintext "$RUDI_TARGET/shared.md"
   rudi_is_plaintext "$RUDI_TARGET/notes/private.md"
@@ -60,11 +60,11 @@ setup_multi_key_repo() {
 @test "rudi unlock after partial lock restores files" {
   setup_multi_key_repo
 
-  run_rudi lock --key alpha
+  rudi lock --key alpha
   rudi_is_encrypted "$RUDI_TARGET/shared.md"
 
   export GNUPGHOME="$USERS_DIR/ada/g"
-  run_rudi unlock
+  rudi unlock
   rudi_is_plaintext "$RUDI_TARGET/shared.md"
 }
 

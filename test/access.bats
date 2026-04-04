@@ -5,14 +5,14 @@ load helpers
 
 @test "add-user to named key only grants that key" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr bob_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
 
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$bob_fpr" --key alpha
+  rudi add-user "$ada_fpr"
+  rudi add-user "$bob_fpr" --key alpha
 
   # ada under default only
   [ -f "$RUDI_TARGET/.git-crypt/keys/default/0/$ada_fpr.gpg" ]
@@ -25,18 +25,18 @@ load helpers
 
 @test "user with named key only: decrypts assigned files, not default-key files" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr bob_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
 
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi add-user "$bob_fpr" --key alpha
+  rudi add-user "$ada_fpr"
+  rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$bob_fpr" --key alpha
 
-  run_rudi assign "notes/**"
-  run_rudi assign "shared.md" --key alpha
+  rudi assign "notes/**"
+  rudi assign "shared.md" --key alpha
 
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "shared.md" "Shared scratchpad"
@@ -55,18 +55,18 @@ load helpers
 
 @test "user with default key only: decrypts default files, not named-key files" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr cal_fpr
   ada_fpr=$(create_test_user "ada")
   cal_fpr=$(create_test_user "cal")
 
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi add-user "$cal_fpr"
+  rudi add-user "$ada_fpr"
+  rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$cal_fpr"
 
-  run_rudi assign "notes/**"
-  run_rudi assign "shared.md" --key alpha
+  rudi assign "notes/**"
+  rudi assign "shared.md" --key alpha
 
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "shared.md" "Shared scratchpad"
@@ -85,16 +85,16 @@ load helpers
 
 @test "user with both keys can decrypt everything" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
 
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$ada_fpr"
+  rudi add-user "$ada_fpr" --key alpha
 
-  run_rudi assign "notes/**"
-  run_rudi assign "shared.md" --key alpha
+  rudi assign "notes/**"
+  rudi assign "shared.md" --key alpha
 
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "shared.md" "Shared scratchpad"
@@ -112,7 +112,7 @@ load helpers
 
 @test "per-user keys isolate files from each other" {
   create_test_repo "test-repo"
-  run_rudi init alpha beta
+  rudi init alpha beta
 
   local ada_fpr bob_fpr cal_fpr
   ada_fpr=$(create_test_user "ada")
@@ -120,15 +120,15 @@ load helpers
   cal_fpr=$(create_test_user "cal")
 
   # ada gets all keys, bob gets alpha, cal gets beta
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi add-user "$ada_fpr" --key beta
-  run_rudi add-user "$bob_fpr" --key alpha
-  run_rudi add-user "$cal_fpr" --key beta
+  rudi add-user "$ada_fpr"
+  rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$ada_fpr" --key beta
+  rudi add-user "$bob_fpr" --key alpha
+  rudi add-user "$cal_fpr" --key beta
 
-  run_rudi assign "notes/**"
-  run_rudi assign "scratch.alpha.md" --key alpha
-  run_rudi assign "scratch.beta.md" --key beta
+  rudi assign "notes/**"
+  rudi assign "scratch.alpha.md" --key alpha
+  rudi assign "scratch.beta.md" --key beta
 
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "scratch.alpha.md" "Alpha's scratchpad"
@@ -157,18 +157,18 @@ load helpers
 
 @test "adding a new key and user does not require re-keying" {
   create_test_repo "test-repo"
-  run_rudi init alpha
+  rudi init alpha
 
   local ada_fpr bob_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
 
-  run_rudi add-user "$ada_fpr"
-  run_rudi add-user "$ada_fpr" --key alpha
-  run_rudi add-user "$bob_fpr" --key alpha
+  rudi add-user "$ada_fpr"
+  rudi add-user "$ada_fpr" --key alpha
+  rudi add-user "$bob_fpr" --key alpha
 
-  run_rudi assign "notes/**"
-  run_rudi assign "scratch.alpha.md" --key alpha
+  rudi assign "notes/**"
+  rudi assign "scratch.alpha.md" --key alpha
 
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "scratch.alpha.md" "Alpha's scratchpad"
@@ -177,10 +177,10 @@ load helpers
   # Add a new key + user after initial setup
   local cal_fpr
   cal_fpr=$(create_test_user "cal")
-  run_rudi add-key beta
-  run_rudi add-user "$cal_fpr" --key beta
-  run_rudi add-user "$ada_fpr" --key beta
-  run_rudi assign "scratch.beta.md" --key beta
+  rudi add-key beta
+  rudi add-user "$cal_fpr" --key beta
+  rudi add-user "$ada_fpr" --key beta
+  rudi assign "scratch.beta.md" --key beta
 
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "scratch.beta.md" "Beta's scratchpad"
