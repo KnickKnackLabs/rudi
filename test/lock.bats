@@ -7,13 +7,11 @@ load helpers
 # files committed under both keys.
 setup_multi_key_repo() {
   create_test_repo "test-repo"
-  rudi init alpha
 
   local fpr
   fpr=$(create_test_user "ada")
 
-  rudi add-user "$fpr"
-  rudi add-user "$fpr" --key alpha
+  rudi init --user "$fpr" alpha
 
   rudi assign "notes/**"
   rudi assign "shared.md" --key alpha

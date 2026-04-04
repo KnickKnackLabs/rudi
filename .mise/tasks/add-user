@@ -13,16 +13,25 @@ rudi_require_git "$TARGET"
 FPR="$usage_fingerprint"
 KEY_NAME="${usage_key:-}"
 
-cmd=(git -C "$TARGET" crypt add-gpg-user --trusted)
-[ -n "$KEY_NAME" ] && cmd+=(--key-name "$KEY_NAME")
-cmd+=("$FPR")
-
-"${cmd[@]}"
-
+# Check if this fingerprint is already a collaborator for this key
 if [ -n "$KEY_NAME" ]; then
-  echo "Added $FPR to key: $KEY_NAME"
+  GPG_FILE="$TARGET/.git-crypt/keys/$KEY_NAME/0/$FPR.gpg"
+  LABEL="key: $KEY_NAME"
 else
-  echo "Added $FPR to default key"
+  GPG_FILE="$TARGET/.git-crypt/keys/default/0/$FPR.gpg"
+  LABEL="default key"
+fi
+
+if [ -f "$GPG_FILE" ]; then
+  echo "$FPR already added to $LABEL"
+else
+  cmd=(git -C "$TARGET" crypt add-gpg-user --trusted)
+  [ -n "$KEY_NAME" ] && cmd+=(--key-name "$KEY_NAME")
+  cmd+=("$FPR")
+
+  "${cmd[@]}"
+
+  echo "Added $FPR to $LABEL"
 fi
 
 # Regenerate COLLABORATORS manifest

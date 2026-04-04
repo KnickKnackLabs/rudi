@@ -36,6 +36,14 @@ load helpers
   [[ "$output" == *"--user"* ]]
 }
 
+@test "init --no-user skips user requirement" {
+  create_test_repo "test-repo"
+
+  run rudi init --no-user
+  [ "$status" -eq 0 ]
+  [ -d "$RUDI_TARGET/.git/git-crypt" ]
+}
+
 @test "init is idempotent on already-initialized repo" {
   create_test_repo "test-repo"
   local fpr
