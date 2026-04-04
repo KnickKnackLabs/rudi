@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 #MISE description="Initialize git-crypt with default and optional named keys"
+#USAGE flag "-u --user <fingerprint>" help="GPG fingerprint(s) to add as initial collaborators" var=#true
+#USAGE flag "--no-user" help="Skip adding users (advanced — repo will be unlockable until a user is added)"
 #USAGE arg "[key_names]..." help="Named keys to create (in addition to default)"
 set -eo pipefail
 
@@ -8,6 +10,20 @@ source "$MISE_CONFIG_ROOT/lib/common.sh"
 TARGET="$(rudi_target_dir)"
 rudi_require_git_crypt
 rudi_require_git "$TARGET"
+
+# Parse variadic --user flag safely
+USERS=()
+if [ -n "${usage_user:-}" ]; then
+  while IFS= read -r fpr; do
+    USERS+=("$fpr")
+  done < <(printf '%s' "${usage_user}" | xargs printf '%s\n')
+fi
+
+if [ "${#USERS[@]}" -eq 0 ] && [ "${usage_no_user:-}" != "true" ]; then
+  echo "Error: at least one --user <fingerprint> is required" >&2
+  echo "Use --no-user to skip (repo will be unlockable until a user is added)" >&2
+  exit 1
+fi
 
 # Always init the default key (skip if already initialized)
 if [ -d "$TARGET/.git/git-crypt" ]; then
@@ -25,4 +41,16 @@ for key_name in $usage_key_names; do
     git -C "$TARGET" crypt init --key-name "$key_name"
     echo "Initialized named key: $key_name"
   fi
+done
+
+# Add all users to the default key
+for fpr in "${USERS[@]}"; do
+  CALLER_PWD="$TARGET" mise -C "$MISE_CONFIG_ROOT" run -q add-user "$fpr"
+done
+
+# Add all users to all named keys
+for key_name in $usage_key_names; do
+  for fpr in "${USERS[@]}"; do
+    CALLER_PWD="$TARGET" mise -C "$MISE_CONFIG_ROOT" run -q add-user "$fpr" --key "$key_name"
+  done
 done

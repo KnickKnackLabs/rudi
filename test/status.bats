@@ -7,7 +7,9 @@ load helpers
 
 @test "status shows keys when unlocked" {
   create_test_repo "test-repo"
-  rudi init
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi init --user "$fpr"
 
   run rudi status
   [ "$status" -eq 0 ]
@@ -16,10 +18,9 @@ load helpers
 
 @test "status shows collaborators" {
   create_test_repo "test-repo"
-  rudi init
   local fpr
   fpr=$(create_test_user "ada")
-  rudi add-user "$fpr"
+  rudi init --user "$fpr"
 
   run rudi status
   [ "$status" -eq 0 ]
@@ -28,7 +29,9 @@ load helpers
 
 @test "status shows patterns" {
   create_test_repo "test-repo"
-  rudi init
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi init --user "$fpr"
   rudi assign "notes/**"
 
   run rudi status
@@ -40,7 +43,9 @@ load helpers
 
 @test "status --json outputs valid JSON" {
   create_test_repo "test-repo"
-  rudi init
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi init --user "$fpr"
 
   run rudi status --json
   [ "$status" -eq 0 ]
@@ -49,7 +54,9 @@ load helpers
 
 @test "status --json shows initialized and unlocked when init'd" {
   create_test_repo "test-repo"
-  rudi init
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi init --user "$fpr"
 
   run rudi status --json
   [ "$status" -eq 0 ]
@@ -59,7 +66,9 @@ load helpers
 
 @test "status --json shows keys" {
   create_test_repo "test-repo"
-  rudi init
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi init --user "$fpr"
 
   run rudi status --json
   [ "$status" -eq 0 ]
@@ -69,7 +78,9 @@ load helpers
 
 @test "status --json shows multiple keys" {
   create_test_repo "test-repo"
-  rudi init alpha
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi init --user "$fpr" alpha
 
   run rudi status --json
   [ "$status" -eq 0 ]
@@ -80,10 +91,9 @@ load helpers
 
 @test "status --json shows collaborator counts" {
   create_test_repo "test-repo"
-  rudi init
   local fpr
   fpr=$(create_test_user "ada")
-  rudi add-user "$fpr"
+  rudi init --user "$fpr"
 
   run rudi status --json
   [ "$status" -eq 0 ]
@@ -92,7 +102,9 @@ load helpers
 
 @test "status --json shows patterns" {
   create_test_repo "test-repo"
-  rudi init
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi init --user "$fpr"
   rudi assign "notes/**"
   rudi assign "submodules/.manifest"
 
@@ -117,10 +129,9 @@ load helpers
 
 @test "status --json shows locked after lock" {
   create_test_repo "test-repo"
-  rudi init
   local fpr
   fpr=$(create_test_user "ada")
-  rudi add-user "$fpr"
+  rudi init --user "$fpr"
   rudi assign "secret.md"
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "secret.md" "top secret"
@@ -135,10 +146,9 @@ load helpers
 
 @test "status --json shows unlocked after unlock" {
   create_test_repo "test-repo"
-  rudi init
   local fpr
   fpr=$(create_test_user "ada")
-  rudi add-user "$fpr"
+  rudi init --user "$fpr"
   rudi assign "secret.md"
   commit_file ".gitattributes" "$(cat "$RUDI_TARGET/.gitattributes")"
   commit_file "secret.md" "top secret"

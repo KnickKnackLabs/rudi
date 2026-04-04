@@ -3,20 +3,19 @@
 
 load helpers
 
-@test "add-user to named key only grants that key" {
+@test "init --user adds to all keys, add-user to named key only adds to that key" {
   create_test_repo "test-repo"
-  rudi init alpha
 
   local ada_fpr bob_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
 
-  rudi add-user "$ada_fpr"
+  rudi init --user "$ada_fpr" alpha
   rudi add-user "$bob_fpr" --key alpha
 
-  # ada under default only
+  # ada under default only (added by init)
   [ -f "$RUDI_TARGET/.git-crypt/keys/default/0/$ada_fpr.gpg" ]
-  [ ! -f "$RUDI_TARGET/.git-crypt/keys/alpha/0/$ada_fpr.gpg" ]
+  [ -f "$RUDI_TARGET/.git-crypt/keys/alpha/0/$ada_fpr.gpg" ]
 
   # bob under alpha only
   [ -f "$RUDI_TARGET/.git-crypt/keys/alpha/0/$bob_fpr.gpg" ]
@@ -25,14 +24,12 @@ load helpers
 
 @test "user with named key only: decrypts assigned files, not default-key files" {
   create_test_repo "test-repo"
-  rudi init alpha
 
   local ada_fpr bob_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
 
-  rudi add-user "$ada_fpr"
-  rudi add-user "$ada_fpr" --key alpha
+  rudi init --user "$ada_fpr" alpha
   rudi add-user "$bob_fpr" --key alpha
 
   rudi assign "notes/**"
@@ -55,14 +52,12 @@ load helpers
 
 @test "user with default key only: decrypts default files, not named-key files" {
   create_test_repo "test-repo"
-  rudi init alpha
 
   local ada_fpr cal_fpr
   ada_fpr=$(create_test_user "ada")
   cal_fpr=$(create_test_user "cal")
 
-  rudi add-user "$ada_fpr"
-  rudi add-user "$ada_fpr" --key alpha
+  rudi init --user "$ada_fpr" alpha
   rudi add-user "$cal_fpr"
 
   rudi assign "notes/**"
@@ -85,13 +80,11 @@ load helpers
 
 @test "user with both keys can decrypt everything" {
   create_test_repo "test-repo"
-  rudi init alpha
 
   local ada_fpr
   ada_fpr=$(create_test_user "ada")
 
-  rudi add-user "$ada_fpr"
-  rudi add-user "$ada_fpr" --key alpha
+  rudi init --user "$ada_fpr" alpha
 
   rudi assign "notes/**"
   rudi assign "shared.md" --key alpha
@@ -112,17 +105,13 @@ load helpers
 
 @test "per-user keys isolate files from each other" {
   create_test_repo "test-repo"
-  rudi init alpha beta
 
   local ada_fpr bob_fpr cal_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
   cal_fpr=$(create_test_user "cal")
 
-  # ada gets all keys, bob gets alpha, cal gets beta
-  rudi add-user "$ada_fpr"
-  rudi add-user "$ada_fpr" --key alpha
-  rudi add-user "$ada_fpr" --key beta
+  rudi init --user "$ada_fpr" alpha beta
   rudi add-user "$bob_fpr" --key alpha
   rudi add-user "$cal_fpr" --key beta
 
@@ -157,14 +146,12 @@ load helpers
 
 @test "adding a new key and user does not require re-keying" {
   create_test_repo "test-repo"
-  rudi init alpha
 
   local ada_fpr bob_fpr
   ada_fpr=$(create_test_user "ada")
   bob_fpr=$(create_test_user "bob")
 
-  rudi add-user "$ada_fpr"
-  rudi add-user "$ada_fpr" --key alpha
+  rudi init --user "$ada_fpr" alpha
   rudi add-user "$bob_fpr" --key alpha
 
   rudi assign "notes/**"
@@ -201,4 +188,43 @@ load helpers
   git -C "$cal_clone" crypt unlock
   rudi_is_plaintext "$cal_clone/scratch.beta.md"
   rudi_is_encrypted "$cal_clone/scratch.alpha.md"
+}
+
+@test "add-user is idempotent for same fingerprint and key" {
+  create_test_repo "test-repo"
+
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi init --user "$fpr" alpha
+
+  # Count commits before
+  local commits_before
+  commits_before=$(git -C "$RUDI_TARGET" rev-list --count HEAD)
+
+  # Adding same user again should succeed but not create a new commit
+  run rudi add-user "$fpr"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"already"* ]]
+
+  local commits_after
+  commits_after=$(git -C "$RUDI_TARGET" rev-list --count HEAD)
+  [ "$commits_before" -eq "$commits_after" ]
+}
+
+@test "add-user same fingerprint to different key is not idempotent" {
+  create_test_repo "test-repo"
+
+  local fpr extra_fpr
+  fpr=$(create_test_user "ada")
+  extra_fpr=$(create_test_user "bob")
+
+  # init adds ada to default + alpha
+  rudi init --user "$fpr" alpha
+
+  # Adding bob to alpha (different user, different key) should work
+  run rudi add-user "$extra_fpr" --key alpha
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"already"* ]]
+
+  [ -f "$RUDI_TARGET/.git-crypt/keys/alpha/0/$extra_fpr.gpg" ]
 }
