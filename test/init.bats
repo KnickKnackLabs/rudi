@@ -111,3 +111,22 @@ load helpers
   count=$(grep -c 'notes/\*\*' "$RUDI_TARGET/.gitattributes")
   [ "$count" -eq 1 ]
 }
+
+@test "assign same pattern to different key creates both lines" {
+  create_test_repo "test-repo"
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi init --user "$fpr" alpha
+
+  rudi assign "notes/**"
+  rudi assign "notes/**" --key alpha
+
+  # Both lines should exist
+  local count
+  count=$(grep -c 'notes/\*\*' "$RUDI_TARGET/.gitattributes")
+  [ "$count" -eq 2 ]
+
+  # One for default, one for alpha
+  grep 'notes/\*\*' "$RUDI_TARGET/.gitattributes" | grep -q 'filter=git-crypt diff=git-crypt'
+  grep 'notes/\*\*' "$RUDI_TARGET/.gitattributes" | grep -q 'filter=git-crypt-alpha diff=git-crypt-alpha'
+}

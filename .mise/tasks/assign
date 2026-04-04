@@ -23,7 +23,7 @@ else
 fi
 
 # Check if this pattern is already assigned
-if [ -f "$GITATTR" ] && grep -qF "$PATTERN" "$GITATTR" && grep -qF "$ATTR" "$GITATTR"; then
+if [ -f "$GITATTR" ] && grep -F "$PATTERN" "$GITATTR" | grep -qF "$ATTR"; then
   echo "Pattern '$PATTERN' already assigned to $LABEL"
 else
   printf '%-40s %s\n' "$PATTERN" "$ATTR" >> "$GITATTR"

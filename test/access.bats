@@ -3,7 +3,7 @@
 
 load helpers
 
-@test "add-user to named key only grants that key" {
+@test "init --user adds to all keys, add-user to named key only adds to that key" {
   create_test_repo "test-repo"
 
   local ada_fpr bob_fpr
