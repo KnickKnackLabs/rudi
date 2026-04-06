@@ -15,7 +15,8 @@ JSON="${usage_json:-false}"
 initialized=false
 unlocked=false
 keys=()
-declare -A collaborators
+collab_keys=()
+collab_counts=()
 patterns=()
 
 # Check initialization (.git/git-crypt is created by git-crypt init,
@@ -38,13 +39,14 @@ if [ -d "$TARGET/.git/git-crypt/keys" ]; then
   fi
 fi
 
-# Gather collaborators
+# Gather collaborators (parallel arrays for bash 3.2 compat)
 if [ -d "$TARGET/.git-crypt/keys" ]; then
   for key_dir in "$TARGET/.git-crypt/keys"/*/; do
     [ ! -d "$key_dir" ] && continue
     key_name="$(basename "$key_dir")"
     gpg_count=$(find "$key_dir" -name "*.gpg" 2>/dev/null | wc -l | tr -d ' ')
-    collaborators[$key_name]=$gpg_count
+    collab_keys+=("$key_name")
+    collab_counts+=("$gpg_count")
   done
 fi
 
@@ -68,10 +70,10 @@ if [ "$JSON" = "true" ]; then
 
   # Build collaborators JSON object
   collab_json="{}"
-  if [ "${#collaborators[@]}" -gt 0 ]; then
+  if [ "${#collab_keys[@]}" -gt 0 ]; then
     collab_json="$(
-      for k in "${!collaborators[@]}"; do
-        printf '%s\t%s\n' "$k" "${collaborators[$k]}"
+      for i in $(seq 0 $(( ${#collab_keys[@]} - 1 ))); do
+        printf '%s\t%s\n' "${collab_keys[$i]}" "${collab_counts[$i]}"
       done | jq -Rsc '
         split("\n") | map(select(length > 0) | split("\t")) |
         map({(.[0]): (.[1] | tonumber)}) | add // {}
@@ -114,9 +116,9 @@ else
 
   echo ""
   echo "Collaborators:"
-  if [ "${#collaborators[@]}" -gt 0 ]; then
-    for key_name in "${!collaborators[@]}"; do
-      echo "  $key_name: ${collaborators[$key_name]} user(s)"
+  if [ "${#collab_keys[@]}" -gt 0 ]; then
+    for i in $(seq 0 $(( ${#collab_keys[@]} - 1 ))); do
+      echo "  ${collab_keys[$i]}: ${collab_counts[$i]} user(s)"
     done
   else
     echo "  (no users added yet)"

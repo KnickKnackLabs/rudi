@@ -55,12 +55,15 @@ fi
 echo "Patterns: ${PATTERNS[*]:-none}"
 
 # Step 1: Find all files protected by this key and save their plaintext content
-declare -A FILE_CONTENTS
+FILE_CACHE="$(mktemp -d)"
+trap 'rm -rf "$FILE_CACHE"' EXIT
+FILE_LIST=()
 for pattern in "${PATTERNS[@]}"; do
   while IFS= read -r file; do
     [ -f "$TARGET/$file" ] || continue
     if rudi_is_plaintext "$TARGET/$file"; then
-      FILE_CONTENTS["$file"]=$(cat "$TARGET/$file")
+      cp "$TARGET/$file" "$FILE_CACHE/${#FILE_LIST[@]}"
+      FILE_LIST+=("$file")
     else
       echo "Warning: $file is currently encrypted (locked). Unlock first." >&2
       echo "Run: git-crypt unlock" >&2
@@ -69,7 +72,7 @@ for pattern in "${PATTERNS[@]}"; do
   done < <(git -C "$TARGET" ls-files -- "$pattern" 2>/dev/null)
 done
 
-echo "Files to re-encrypt: ${#FILE_CONTENTS[@]}"
+echo "Files to re-encrypt: ${#FILE_LIST[@]}"
 
 # Step 2: Lock files under this key so we can safely remove the old key
 if [ "$KEY_NAME" = "default" ]; then
@@ -105,8 +108,8 @@ git -C "$TARGET" crypt unlock 2>/dev/null || true
 
 # Step 7: Restore file contents (they may have been re-encrypted with old key data in git objects)
 # The files should already be plaintext after unlock, but let's ensure content is correct
-for file in "${!FILE_CONTENTS[@]}"; do
-  printf '%s\n' "${FILE_CONTENTS[$file]}" > "$TARGET/$file"
+for i in $(seq 0 $(( ${#FILE_LIST[@]} - 1 ))); do
+  cp "$FILE_CACHE/$i" "$TARGET/${FILE_LIST[$i]}"
 done
 
 # Step 8: Stage and commit the re-encrypted files
@@ -117,4 +120,4 @@ echo ""
 echo "Key '$KEY_NAME' rotated successfully."
 echo "  New symmetric key generated"
 echo "  ${#FPRS[@]} collaborator(s) re-added"
-echo "  ${#FILE_CONTENTS[@]} file(s) re-encrypted"
+echo "  ${#FILE_LIST[@]} file(s) re-encrypted"
