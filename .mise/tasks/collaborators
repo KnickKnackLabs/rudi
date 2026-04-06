@@ -42,8 +42,9 @@ MANIFEST="$TARGET/.git-crypt/COLLABORATORS"
   fi
   echo ""
 
-  # Collect all unique fingerprints across all keys
-  declare -A FPR_KEYS  # fingerprint -> comma-separated key list
+  # Collect all unique fingerprints across all keys (parallel arrays for bash 3.2 compat)
+  fpr_list=()
+  fpr_key_list=()
   for key_dir in "$KEYS_DIR"/*/; do
     key_name=$(basename "$key_dir")
     gpg_dir="$key_dir/0"
@@ -51,17 +52,28 @@ MANIFEST="$TARGET/.git-crypt/COLLABORATORS"
     for gpg_file in "$gpg_dir"/*.gpg; do
       [ -f "$gpg_file" ] || continue
       fpr=$(basename "$gpg_file" .gpg)
-      if [ -n "${FPR_KEYS[$fpr]:-}" ]; then
-        FPR_KEYS[$fpr]="${FPR_KEYS[$fpr]}, $key_name"
-      else
-        FPR_KEYS[$fpr]="$key_name"
+      # Check if fpr already in list
+      found=false
+      if [ "${#fpr_list[@]}" -gt 0 ]; then
+        for i in $(seq 0 $(( ${#fpr_list[@]} - 1 ))); do
+          if [ "${fpr_list[$i]}" = "$fpr" ]; then
+            fpr_key_list[$i]="${fpr_key_list[$i]}, $key_name"
+            found=true
+            break
+          fi
+        done
+      fi
+      if ! $found; then
+        fpr_list+=("$fpr")
+        fpr_key_list+=("$key_name")
       fi
     done
   done
 
   first=true
-  for fpr in "${!FPR_KEYS[@]}"; do
-    keys="${FPR_KEYS[$fpr]}"
+  for i in $(seq 0 $(( ${#fpr_list[@]} - 1 ))); do
+    fpr="${fpr_list[$i]}"
+    keys="${fpr_key_list[$i]}"
     uid=$(gpg --list-keys --with-colons "$fpr" 2>/dev/null \
       | awk -F: '/^uid/{print $10; exit}')
 
@@ -85,6 +97,6 @@ if ! git -C "$TARGET" diff --cached --quiet -- "$MANIFEST"; then
 fi
 
 # Count collaborators
-total=${#FPR_KEYS[@]}
+total=${#fpr_list[@]}
 echo "COLLABORATORS manifest updated: $total collaborator(s)"
 echo "  File: $MANIFEST"
