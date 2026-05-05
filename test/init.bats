@@ -112,6 +112,27 @@ load helpers
   [ "$count" -eq 1 ]
 }
 
+@test "assign appends positive attributes after disabled exact-pattern line" {
+  create_test_repo "test-repo"
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi init --user "$fpr"
+
+  printf 'notes/** -filter=git-crypt diff=git-crypt\n' > "$RUDI_TARGET/.gitattributes"
+
+  rudi assign "notes/**"
+
+  run git -C "$RUDI_TARGET" check-attr filter -- notes/foo.md
+  [ "$status" -eq 0 ]
+  [ "$output" = "notes/foo.md: filter: git-crypt" ]
+
+  rudi assign "notes/**"
+
+  local count
+  count=$(grep -c 'notes/\*\*' "$RUDI_TARGET/.gitattributes")
+  [ "$count" -eq 2 ]
+}
+
 @test "assign same pattern to different key creates both lines" {
   create_test_repo "test-repo"
   local fpr

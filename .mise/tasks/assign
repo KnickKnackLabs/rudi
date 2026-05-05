@@ -15,15 +15,50 @@ GITATTR="$TARGET/.gitattributes"
 
 # Build the filter/diff attribute string
 if [ -z "$KEY_NAME" ] || [ "$KEY_NAME" = "default" ]; then
-  ATTR="filter=git-crypt diff=git-crypt"
+  FILTER_ATTR="filter=git-crypt"
+  DIFF_ATTR="diff=git-crypt"
   LABEL="default key"
 else
-  ATTR="filter=git-crypt-${KEY_NAME} diff=git-crypt-${KEY_NAME}"
+  FILTER_ATTR="filter=git-crypt-${KEY_NAME}"
+  DIFF_ATTR="diff=git-crypt-${KEY_NAME}"
   LABEL="key: $KEY_NAME"
 fi
+ATTR="$FILTER_ATTR $DIFF_ATTR"
 
-# Check if this pattern is already assigned
-if [ -f "$GITATTR" ] && grep -F "$PATTERN" "$GITATTR" | grep -qF "$ATTR"; then
+gitattributes_line_has_token() {
+  local attrs="$1"
+  local token="$2"
+
+  attrs="${attrs//$'\t'/ }"
+  case " $attrs " in
+    *" $token "*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Check whether the latest exact-pattern line has the requested positive attributes.
+# .gitattributes is order-sensitive, so an earlier positive line can be overridden
+# by a later disabled or different-key assignment for the same pattern.
+assigned=false
+if [ -f "$GITATTR" ]; then
+  while IFS= read -r line; do
+    IFS=$' \t' read -r line_pattern line_attrs <<< "$line"
+    case "$line_pattern" in
+      ""|\#*) continue ;;
+    esac
+
+    if [ "$line_pattern" = "$PATTERN" ]; then
+      if gitattributes_line_has_token "$line_attrs" "$FILTER_ATTR" && \
+         gitattributes_line_has_token "$line_attrs" "$DIFF_ATTR"; then
+        assigned=true
+      else
+        assigned=false
+      fi
+    fi
+  done < "$GITATTR"
+fi
+
+if $assigned; then
   echo "Pattern '$PATTERN' already assigned to $LABEL"
 else
   printf '%-40s %s\n' "$PATTERN" "$ATTR" >> "$GITATTR"
