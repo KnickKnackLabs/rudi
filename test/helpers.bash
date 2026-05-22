@@ -46,7 +46,7 @@ rudi() {
     echo "RUDI_TARGET not set" >&2
     return 1
   fi
-  cd "$MISE_CONFIG_ROOT" && CALLER_PWD="$RUDI_TARGET" mise run -q "$@"
+  cd "$MISE_CONFIG_ROOT" && RUDI_CALLER_PWD="$RUDI_TARGET" mise run -q "$@"
 }
 export -f rudi
 

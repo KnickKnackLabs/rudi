@@ -35,4 +35,6 @@ else
 fi
 
 # Regenerate COLLABORATORS manifest
-CALLER_PWD="$TARGET" mise -C "$MISE_CONFIG_ROOT" run -q collaborators 2>/dev/null || true
+if ! RUDI_CALLER_PWD="$TARGET" mise -C "$MISE_CONFIG_ROOT" run -q collaborators 2>/dev/null; then
+  : # best-effort regeneration; add-user itself already succeeded
+fi

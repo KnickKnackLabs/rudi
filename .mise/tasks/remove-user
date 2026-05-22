@@ -37,7 +37,9 @@ git -C "$TARGET" commit -q -m "Remove collaborator $FPR from key '$KEY_NAME'"
 echo "Removed $FPR from key: $KEY_NAME"
 
 # Regenerate COLLABORATORS manifest
-CALLER_PWD="$TARGET" mise -C "$MISE_CONFIG_ROOT" run -q collaborators 2>/dev/null || true
+if ! RUDI_CALLER_PWD="$TARGET" mise -C "$MISE_CONFIG_ROOT" run -q collaborators 2>/dev/null; then
+  : # best-effort regeneration; removal itself already succeeded
+fi
 
 echo ""
 echo "Note: this prevents future clones from granting access, but does NOT"

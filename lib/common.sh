@@ -3,9 +3,11 @@
 # All functions namespaced rudi_
 
 # Resolve the target directory (the repo rudi is operating on).
-# Uses CALLER_PWD (set by shiv shim) or falls back to PWD.
+# Shiv shims set RUDI_CALLER_PWD to the caller's working directory before
+# dispatching into the installed package. Fall back to the task's current
+# directory for direct `mise run` usage.
 rudi_target_dir() {
-  echo "${CALLER_PWD:-$PWD}"
+  echo "${RUDI_CALLER_PWD:-$PWD}"
 }
 
 # Check if a file is encrypted (git-crypt binary format).
