@@ -3,6 +3,26 @@
 
 load helpers
 
+# --- Target resolution ---
+
+@test "RUDI_CALLER_PWD takes precedence over stale legacy CALLER_PWD" {
+  create_test_repo "target-repo"
+  local fpr
+  fpr=$(create_test_user "ada")
+  rudi init --user "$fpr"
+
+  local target_repo="$RUDI_TARGET"
+  local stale_caller="$REPOS_DIR/stale-caller"
+  mkdir -p "$stale_caller"
+
+  run env RUDI_CALLER_PWD="$target_repo" CALLER_PWD="$stale_caller" \
+    mise -C "$MISE_CONFIG_ROOT" run -q status --json
+
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.initialized == true'
+  echo "$output" | jq -e '.keys | index("default") != null'
+}
+
 # --- Text output ---
 
 @test "status shows keys when unlocked" {

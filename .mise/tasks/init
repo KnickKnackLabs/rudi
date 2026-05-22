@@ -45,12 +45,12 @@ done
 
 # Add all users to the default key
 for fpr in "${USERS[@]}"; do
-  CALLER_PWD="$TARGET" mise -C "$MISE_CONFIG_ROOT" run -q add-user "$fpr"
+  RUDI_CALLER_PWD="$TARGET" mise -C "$MISE_CONFIG_ROOT" run -q add-user "$fpr"
 done
 
 # Add all users to all named keys
 for key_name in $usage_key_names; do
   for fpr in "${USERS[@]}"; do
-    CALLER_PWD="$TARGET" mise -C "$MISE_CONFIG_ROOT" run -q add-user "$fpr" --key "$key_name"
+    RUDI_CALLER_PWD="$TARGET" mise -C "$MISE_CONFIG_ROOT" run -q add-user "$fpr" --key "$key_name"
   done
 done
