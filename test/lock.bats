@@ -66,6 +66,34 @@ setup_multi_key_repo() {
   rudi_is_plaintext "$RUDI_TARGET/shared.md"
 }
 
+@test "rudi unlock invokes git-crypt from the target repo cwd" {
+  create_test_repo "target-repo"
+
+  local real_git fake_bin logged_cwd expected_cwd
+  real_git=$(command -v git)
+  fake_bin="$TEST_DIR/fake-bin"
+  mkdir -p "$fake_bin"
+
+  cat > "$fake_bin/git" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "\${1:-}" = "crypt" ] && [ "\${2:-}" = "unlock" ]; then
+  pwd -P > "$TEST_DIR/unlock-cwd"
+  exit 0
+fi
+exec "$real_git" "\$@"
+EOF
+  chmod +x "$fake_bin/git"
+
+  export PATH="$fake_bin:$PATH"
+  run rudi unlock
+
+  [ "$status" -eq 0 ]
+  logged_cwd=$(cat "$TEST_DIR/unlock-cwd")
+  expected_cwd=$(cd "$RUDI_TARGET" && pwd -P)
+  [ "$logged_cwd" = "$expected_cwd" ]
+}
+
 # --- raw git-crypt behavior (documenting quirks) ---
 
 @test "git-crypt lock --key-name locks only that key's files" {

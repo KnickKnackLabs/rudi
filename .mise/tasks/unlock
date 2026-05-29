@@ -8,5 +8,8 @@ TARGET="$(rudi_target_dir)"
 rudi_require_git_crypt
 rudi_require_git "$TARGET"
 
-git -C "$TARGET" crypt unlock
+(
+  cd "$TARGET"
+  git crypt unlock
+)
 echo "Unlocked. Encrypted files are now readable."
