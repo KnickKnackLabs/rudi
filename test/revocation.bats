@@ -89,6 +89,41 @@ load helpers
   rudi_is_encrypted "$clone/shared.md"
 }
 
+@test "rotate-key fails when git-crypt lock fails" {
+  create_test_repo "test-repo"
+
+  local fpr="0000000000000000000000000000000000000000"
+  mkdir -p "$RUDI_TARGET/.git-crypt/keys/alpha/0"
+  touch "$RUDI_TARGET/.git-crypt/keys/alpha/0/$fpr.gpg"
+  printf 'shared.md filter=git-crypt-alpha diff=git-crypt-alpha\n' > "$RUDI_TARGET/.gitattributes"
+  printf 'Sensitive content\n' > "$RUDI_TARGET/shared.md"
+  git -C "$RUDI_TARGET" add .gitattributes shared.md .git-crypt/keys/alpha/0/$fpr.gpg
+
+  local real_git mock_git
+  real_git=$(command -v git)
+  mock_git="$TEST_DIR/git-lock-fails"
+  cat > "$mock_git" <<EOF
+#!/usr/bin/env bash
+if [ "\${1:-}" = "-C" ]; then
+  target="\$2"
+  shift 2
+  if [ "\${1:-}" = "crypt" ] && [ "\${2:-}" = "lock" ]; then
+    echo "mock git-crypt lock failure" >&2
+    exit 42
+  fi
+  exec "$real_git" -C "\$target" "\$@"
+fi
+exec "$real_git" "\$@"
+EOF
+  chmod +x "$mock_git"
+
+  export GIT="$mock_git"
+  run rudi rotate-key --key alpha
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Error: git-crypt lock for key 'alpha' failed"* ]]
+  [[ "$output" == *"mock git-crypt lock failure"* ]]
+}
+
 @test "rotate-key generates a new symmetric key" {
   create_test_repo "test-repo"
 
@@ -152,6 +187,10 @@ load helpers
   commit_file "shared.md" "Shared content"
 
   rudi remove-user "$bob_fpr" --key alpha
+  if ! git -C "$RUDI_TARGET" diff --quiet; then
+    git -C "$RUDI_TARGET" add .
+    git -C "$RUDI_TARGET" commit -q -m "Update generated collaborator manifest"
+  fi
   rudi rotate-key --key alpha
 
   [ -f "$RUDI_TARGET/.git-crypt/keys/alpha/0/$ada_fpr.gpg" ]

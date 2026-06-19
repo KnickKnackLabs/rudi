@@ -1,9 +1,29 @@
 #!/usr/bin/env bash
 #MISE description="Rotate a named key (re-encrypt files with a new key)"
 #USAGE flag "-k --key <name>" help="Named key to rotate (default: default key)"
-set -eo pipefail
+set -euo pipefail
 
 source "$MISE_CONFIG_ROOT/lib/common.sh"
+
+GIT="${GIT:-git}"
+
+rudi_run_required() {
+  local description="$1"
+  shift
+
+  local output
+  if ! output="$("$@" 2>&1)"; then
+    echo "Error: $description failed" >&2
+    if [ -n "$output" ]; then
+      echo "$output" >&2
+    fi
+    exit 1
+  fi
+
+  if [ -n "$output" ]; then
+    echo "$output"
+  fi
+}
 
 TARGET="$(rudi_target_dir)"
 rudi_require_git_crypt
@@ -58,7 +78,7 @@ echo "Patterns: ${PATTERNS[*]:-none}"
 FILE_CACHE="$(mktemp -d)"
 trap 'rm -rf "$FILE_CACHE"' EXIT
 FILE_LIST=()
-for pattern in "${PATTERNS[@]}"; do
+for pattern in ${PATTERNS[@]+"${PATTERNS[@]}"}; do
   while IFS= read -r file; do
     [ -f "$TARGET/$file" ] || continue
     if rudi_is_plaintext "$TARGET/$file"; then
@@ -69,52 +89,50 @@ for pattern in "${PATTERNS[@]}"; do
       echo "Run: git-crypt unlock" >&2
       exit 1
     fi
-  done < <(git -C "$TARGET" ls-files -- "$pattern" 2>/dev/null)
+  done < <("$GIT" -C "$TARGET" ls-files -- "$pattern" 2>/dev/null)
 done
 
 echo "Files to re-encrypt: ${#FILE_LIST[@]}"
 
 # Step 2: Lock files under this key so we can safely remove the old key
 if [ "$KEY_NAME" = "default" ]; then
-  git -C "$TARGET" crypt lock 2>/dev/null || true
+  rudi_run_required "git-crypt lock for default key" "$GIT" -C "$TARGET" crypt lock
 else
-  git -C "$TARGET" crypt lock --key-name "$KEY_NAME" 2>/dev/null || true
+  rudi_run_required "git-crypt lock for key '$KEY_NAME'" "$GIT" -C "$TARGET" crypt lock --key-name "$KEY_NAME"
 fi
 
 # Step 3: Remove the old key's .gpg files and local key material
-git -C "$TARGET" rm -rf "$GPG_DIR" 2>/dev/null || true
-rm -f "$TARGET/.git/git-crypt/keys/$KEY_NAME"
+rudi_run_required "removing old GPG wrappers for key '$KEY_NAME'" "$GIT" -C "$TARGET" rm -q -rf "$GPG_DIR"
+rudi_run_required "removing old local key material for key '$KEY_NAME'" rm -f "$TARGET/.git/git-crypt/keys/$KEY_NAME"
 
 # Step 4: Re-initialize the key (generates fresh symmetric key)
 if [ "$KEY_NAME" = "default" ]; then
-  git -C "$TARGET" crypt init 2>/dev/null
+  rudi_run_required "git-crypt init for default key" "$GIT" -C "$TARGET" crypt init
 else
-  git -C "$TARGET" crypt init --key-name "$KEY_NAME" 2>/dev/null
+  rudi_run_required "git-crypt init for key '$KEY_NAME'" "$GIT" -C "$TARGET" crypt init --key-name "$KEY_NAME"
 fi
 
 # Step 5: Re-add all remaining collaborators
 for fpr in "${FPRS[@]}"; do
-  cmd=(git -C "$TARGET" crypt add-gpg-user --trusted)
+  cmd=("$GIT" -C "$TARGET" crypt add-gpg-user --trusted)
   if [ "$KEY_NAME" != "default" ]; then
     cmd+=(--key-name "$KEY_NAME")
   fi
   cmd+=("$fpr")
-  "${cmd[@]}" 2>/dev/null
+  rudi_run_required "re-adding collaborator $fpr to key '$KEY_NAME'" "${cmd[@]}"
   echo "  Re-added: $fpr"
 done
 
-# Step 6: Unlock with the new key so files become plaintext again
-git -C "$TARGET" crypt unlock 2>/dev/null || true
-
-# Step 7: Restore file contents (they may have been re-encrypted with old key data in git objects)
-# The files should already be plaintext after unlock, but let's ensure content is correct
-for i in $(seq 0 $(( ${#FILE_LIST[@]} - 1 ))); do
+# Step 6: Restore plaintext content so git add re-encrypts it with the fresh key.
+i=0
+while [ "$i" -lt "${#FILE_LIST[@]}" ]; do
   cp "$FILE_CACHE/$i" "$TARGET/${FILE_LIST[$i]}"
+  i=$((i + 1))
 done
 
-# Step 8: Stage and commit the re-encrypted files
-git -C "$TARGET" add .
-git -C "$TARGET" commit -q -m "Rotate key '$KEY_NAME': re-encrypted with fresh key" 2>/dev/null || true
+# Step 7: Stage and commit the re-encrypted files
+rudi_run_required "staging rotated key material and re-encrypted files" "$GIT" -C "$TARGET" add .
+rudi_run_required "committing rotated key '$KEY_NAME'" "$GIT" -C "$TARGET" commit -q -m "Rotate key '$KEY_NAME': re-encrypted with fresh key"
 
 echo ""
 echo "Key '$KEY_NAME' rotated successfully."
